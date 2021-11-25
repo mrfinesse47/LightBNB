@@ -17,10 +17,6 @@ const pool = new Pool({
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithEmail = function (email) {
-  // SELECT id, name, email, password
-  // FROM users
-  // WHERE email = 'tristanjacobs@gmail.com';
-
   return pool
     .query(
       `SELECT id, name, email, password
@@ -33,16 +29,6 @@ const getUserWithEmail = function (email) {
       console.log(err);
       return null;
     });
-
-  // for (const userId in users) {
-  //   user = users[userId];
-  //   if (user.email.toLowerCase() === email.toLowerCase()) {
-  //     break;
-  //   } else {
-  //     user = null;
-  //   }
-  // }
-  // return Promise.resolve(user);
 };
 exports.getUserWithEmail = getUserWithEmail;
 
@@ -52,7 +38,18 @@ exports.getUserWithEmail = getUserWithEmail;
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithId = function (id) {
-  return Promise.resolve(users[id]);
+  return pool
+    .query(
+      `SELECT id, name, email, password
+    FROM users
+    WHERE id = $1`,
+      [id]
+    )
+    .then((result) => result.rows[0] || null)
+    .catch((err) => {
+      console.log(err);
+      return null;
+    });
 };
 exports.getUserWithId = getUserWithId;
 
@@ -63,6 +60,21 @@ exports.getUserWithId = getUserWithId;
  */
 
 const addUser = function (user) {
+  return pool
+    .query(
+      `INSERT INTO users (
+        name, email, password) 
+        VALUES ($1, $2, $3)
+        RETURNING *`,
+      [user.name, user.email, user.password]
+    )
+    .then((result) => result.rows[0])
+    .catch((err) => {
+      console.log("###error:", err);
+      return null;
+    });
+
+  console.log(user);
   const userId = Object.keys(users).length + 1;
   user.id = userId;
   users[userId] = user;
