@@ -118,14 +118,56 @@ exports.getAllReservations = getAllReservations;
  */
 
 const getAllProperties = (options, limit = 10) => {
-  return pool
-    .query(
-      `SELECT * FROM properties
-       LIMIT $1`,
-      [limit]
-    )
-    .then((result) => result.rows)
-    .catch((err) => console.log(err.message));
+  const queryParams = [];
+  let queryString = `
+  SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id
+  `;
+
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    queryString += ` WHERE city LIKE $${queryParams.length} `;
+  }
+
+  if (options.owner_id) {
+    queryParams.push(options.owner_id);
+    queryString += `${queryParams.length ? ` AND ` : ` WHERE`} owner_id=$${
+      queryParams.length
+    }`;
+  }
+
+  if (options.minimum_price_per_night) {
+    queryParams.push(options.minimum_price_per_night);
+    queryString += `${
+      queryParams.length ? ` AND ` : ` WHERE`
+    } cost_per_night>$${queryParams.length}`;
+  }
+
+  if (options.maximum_price_per_night) {
+    queryParams.push(options.maximum_price_per_night);
+    queryString += `${
+      queryParams.length ? ` AND ` : ` WHERE`
+    } cost_per_night<$${queryParams.length}`;
+  }
+
+  queryString += `
+  GROUP BY properties.id`;
+
+  if (options.minimum_rating) {
+    queryParams.push(options.minimum_rating);
+    queryString += ` HAVING avg(property_reviews.rating)>$${queryParams.length}`;
+  }
+
+  queryParams.push(limit);
+  queryString += `
+  ORDER BY cost_per_night
+  LIMIT $${queryParams.length};
+  `;
+
+  return pool.query(queryString, queryParams).then((res) => {
+    return res.rows;
+  });
 };
 
 exports.getAllProperties = getAllProperties;
@@ -138,7 +180,7 @@ exports.getAllProperties = getAllProperties;
 const addProperty = function (property) {
   const propertyId = Object.keys(properties).length + 1;
   property.id = propertyId;
-  properties[propertyId] = property;
+  properties[propertyId] = property; //from JSON
   return Promise.resolve(property);
 };
 exports.addProperty = addProperty;
