@@ -177,10 +177,31 @@ exports.getAllProperties = getAllProperties;
  * @param {{}} property An object containing all of the property details.
  * @return {Promise<{}>} A promise to the property.
  */
+
 const addProperty = function (property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property; //from JSON
-  return Promise.resolve(property);
+  let insertStr = `INSERT INTO properties (`;
+
+  let keyStr = "";
+
+  let keys = Object.keys(property);
+
+  let valuesAliasStr = ""; //the values with the $ signs
+  const values = [];
+
+  for (let index = 1; index <= keys.length; index++) {
+    keyStr += keys[index - 1] + `${keys.length != index ? "," : ""} `;
+    valuesAliasStr += `$${index} ${keys.length != index ? "," : ""}`;
+    values.push(property[keys[index - 1]]);
+  }
+
+  insertStr += keyStr + ")" + "VALUES( " + valuesAliasStr + ") RETURNING *";
+
+  return pool
+    .query(insertStr, values)
+    .then((result) => result.rows[0])
+    .catch((err) => {
+      console.log("###error:", err);
+      return null;
+    });
 };
 exports.addProperty = addProperty;
